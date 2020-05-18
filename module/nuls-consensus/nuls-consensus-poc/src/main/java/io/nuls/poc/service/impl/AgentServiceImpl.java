@@ -108,7 +108,7 @@ public class AgentServiceImpl implements AgentService {
         }
         try {
             //1.参数验证
-            if (!AddressTool.isNormalAddress(dto.getPackingAddress(), (short) dto.getChainId())) {
+            if (!AddressTool.isNormalAddress(dto.getPackingAddress(), dto.getChainId())) {
                 throw new NulsRuntimeException(ConsensusErrorCode.ADDRESS_ERROR);
             }
             //2.账户验证
@@ -200,7 +200,7 @@ public class AgentServiceImpl implements AgentService {
         } catch (RuntimeException e) {
             return Result.getFailed(ConsensusErrorCode.PARAM_ERROR);
         }
-        if (!AddressTool.validAddress((short) dto.getChainId(), dto.getAddress())) {
+        if (!AddressTool.validAddress(dto.getChainId(), dto.getAddress())) {
             throw new NulsRuntimeException(ConsensusErrorCode.ADDRESS_ERROR);
         }
         Chain chain = chainManager.getChainMap().get(dto.getChainId());
@@ -362,8 +362,7 @@ public class AgentServiceImpl implements AgentService {
         agentManager.fillAgentList(chain, handleList, null);
         List<AgentDTO> resultList = new ArrayList<>();
         for (int i = start; i < handleList.size() && i < (start + pageSize); i++) {
-            AgentDTO agentDTO = new AgentDTO(handleList.get(i));
-            resultList.add(agentDTO);
+            resultList.add(new AgentDTO(handleList.get(i)));
         }
         page.setList(resultList);
         return Result.getSuccess(ConsensusErrorCode.SUCCESS).setData(page);
@@ -590,6 +589,10 @@ public class AgentServiceImpl implements AgentService {
             if(round != null){
                 for (MeetingMember meetingMember : round.getMemberList()) {
                     packAddressList.add(AddressTool.getStringAddressByBytes(meetingMember.getAgent().getPackingAddress()));
+                }
+            }else {
+                if(chain.isCacheLoaded()) {
+                    packAddressList = new ArrayList<>(Arrays.asList(chain.getConfig().getSeedNodes().split(",")));
                 }
             }
             resultMap.put("packAddressList", packAddressList);

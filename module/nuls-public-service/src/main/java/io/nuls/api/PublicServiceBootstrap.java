@@ -20,11 +20,14 @@
 
 package io.nuls.api;
 
+import com.fasterxml.jackson.core.JsonParser;
 import io.nuls.api.analysis.WalletRpcHandler;
+import io.nuls.api.constant.config.ApiConfig;
+import io.nuls.api.db.mongo.MongoChainServiceImpl;
 import io.nuls.api.db.mongo.MongoDBTableServiceImpl;
 import io.nuls.api.manager.ScheduleManager;
-import io.nuls.api.constant.config.ApiConfig;
 import io.nuls.api.model.po.ChainInfo;
+import io.nuls.api.model.po.SyncInfo;
 import io.nuls.api.rpc.jsonRpc.JsonRpcServer;
 import io.nuls.api.utils.LoggerUtil;
 import io.nuls.base.api.provider.Provider;
@@ -35,6 +38,7 @@ import io.nuls.core.core.annotation.Autowired;
 import io.nuls.core.core.annotation.Component;
 import io.nuls.core.core.config.ConfigurationLoader;
 import io.nuls.core.core.ioc.SpringLiteContext;
+import io.nuls.core.parse.JSONUtils;
 import io.nuls.core.rpc.info.HostInfo;
 import io.nuls.core.rpc.model.ModuleE;
 import io.nuls.core.rpc.modulebootstrap.Module;
@@ -44,6 +48,7 @@ import io.nuls.core.rpc.modulebootstrap.RpcModuleState;
 import io.nuls.core.rpc.util.AddressPrefixDatas;
 import org.bouncycastle.util.encoders.Hex;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -151,6 +156,7 @@ public class PublicServiceBootstrap extends RpcModule {
         ApiContext.BUSINESS_ADDRESS = apiConfig.getBusinessAddress();
         ApiContext.TEAM_ADDRESS = apiConfig.getTeamAddress();
         ApiContext.COMMUNITY_ADDRESS = apiConfig.getCommunityAddress();
+        JSONUtils.getInstance().configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
 
     }
 
@@ -168,6 +174,7 @@ public class PublicServiceBootstrap extends RpcModule {
                 ApiContext.agentChainId = (int) configMap.get("agentChainId");
                 ApiContext.agentAssetId = (int) configMap.get("agentAssetId");
                 ApiContext.awardAssetId = (int) configMap.get("awardAssetId");
+                ApiContext.minDeposit = new BigInteger(configMap.get("commissionMin").toString());
             }
             initDB();
 
@@ -202,6 +209,12 @@ public class PublicServiceBootstrap extends RpcModule {
             tableService.addDefaultChainCache();
         } else {
             tableService.initCache();
+        }
+
+        MongoChainServiceImpl chainService = SpringLiteContext.getBean(MongoChainServiceImpl.class);
+        SyncInfo syncInfo = chainService.getSyncInfo(ApiContext.defaultChainId);
+        if (syncInfo != null) {
+            ApiContext.protocolVersion = syncInfo.getVersion();
         }
     }
 

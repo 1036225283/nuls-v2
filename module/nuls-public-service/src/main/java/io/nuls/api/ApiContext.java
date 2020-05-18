@@ -20,6 +20,7 @@
 
 package io.nuls.api;
 
+import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -50,6 +51,8 @@ public class ApiContext {
 
     public static int awardAssetId;
 
+    public static BigInteger minDeposit;
+
     public static String databaseUrl;
 
     public static int databasePort;
@@ -61,6 +64,8 @@ public class ApiContext {
     public static String logLevel;
 
     public static String VERSION = "1.0";
+
+    public static int protocolVersion = 1;
 
     public static int maxAliveConnect;
 

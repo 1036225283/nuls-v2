@@ -36,9 +36,13 @@ public interface ParamConstant {
 
     String USABLE = "usable";
 
+    String FROM = "from";
+    String TO = "to";
+
     String DECIMAL_PLACES = "decimalPlaces";
 
     String NEW_BLOCK_HEIGHT = "height";
+    String SYNC_STATUS = "status";
 
     String PARAM_TYPE_INT = "int";
     String PARAM_TYPE_STRING = "String";

@@ -54,6 +54,11 @@ public class EconomicManager {
             }
             return rewardList;
         }
+
+        if(consensusConfig.getTotalInflationAmount().equals(BigInteger.ZERO) || consensusConfig.getInflationAmount().equals(BigInteger.ZERO)){
+            return rewardList;
+        }
+
         /*
         本轮次总的出块奖励金(本轮次出块节点数*共识基础奖励 )
         Total reward in this round
@@ -172,8 +177,11 @@ public class EconomicManager {
         long roundStartTime = roundInfo.getRoundStartTime() + consensusConfig.getPackingInterval();
         long roundEndTime = roundInfo.getRoundEndTime();
 
+        //区块回滚时导致通缩也回滚
+        boolean changeInflationInfo = lastVisitInflationInfo == null || roundStartTime >= lastVisitInflationInfo.getEndTime() || roundEndTime <= lastVisitInflationInfo.getStartTime();
+
         InflationInfo inflationInfo = getInflationInfo(consensusConfig, roundStartTime);
-        if(roundEndTime <= inflationInfo.getEndTime()){
+        if( roundStartTime >= inflationInfo.getStartTime() && roundEndTime <= inflationInfo.getEndTime()){
             return DoubleUtils.mul(new BigDecimal(roundInfo.getMemberCount()), new BigDecimal(inflationInfo.getAwardUnit()));
         }
 
@@ -188,7 +196,9 @@ public class EconomicManager {
         currentCount = (roundEndTime - roundStartTime)/consensusConfig.getPackingInterval() + 1;
         Log.info("本轮共识奖励为{}的数量为{}", inflationInfo.getAwardUnit(),currentCount);
         totalAll = totalAll.add(DoubleUtils.mul(new BigDecimal(currentCount), new BigDecimal(inflationInfo.getAwardUnit())));
-
+        if(changeInflationInfo){
+            lastVisitInflationInfo = inflationInfo;
+        }
         return totalAll;
     }
 
@@ -201,6 +211,9 @@ public class EconomicManager {
      * @return                  该时间点通胀信息
      * */
     private static InflationInfo getInflationInfo(ConsensusConfigInfo consensusConfig , long time) throws NulsException {
+        if(lastVisitInflationInfo != null && time >= lastVisitInflationInfo.getStartTime() && time <= lastVisitInflationInfo.getEndTime()){
+            return lastVisitInflationInfo;
+        }
         InflationInfo inflationInfo = new InflationInfo();
         long startTime = consensusConfig.getInitTime();
         long endTime = consensusConfig.getInitTime() + consensusConfig.getDeflationTimeInterval();
@@ -208,10 +221,6 @@ public class EconomicManager {
         if(time < startTime){
             time = startTime;
             Log.info("当前时间小于通缩开始时间！" );
-        }
-
-        if(lastVisitInflationInfo != null && time >= lastVisitInflationInfo.getStartTime() && time <= lastVisitInflationInfo.getEndTime()){
-            return lastVisitInflationInfo;
         }
 
         if(time <= endTime){
@@ -232,7 +241,6 @@ public class EconomicManager {
             inflationInfo.setInflationAmount(inflationAmount);
             inflationInfo.setAwardUnit(calcAwardUnit(consensusConfig,inflationAmount));
         }
-        lastVisitInflationInfo = inflationInfo;
         Log.info("通胀发生改变，当前通胀通胀开始时间{}：，当前阶段通胀结束时间：{},当前阶段通胀总数：{}，当前阶段出块单位奖励：{}", inflationInfo.getStartTime(),inflationInfo.getEndTime(),inflationInfo.getInflationAmount(),inflationInfo.getAwardUnit());
         return inflationInfo;
     }

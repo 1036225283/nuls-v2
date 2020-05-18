@@ -48,6 +48,8 @@ public interface CommandConstant {
     String TX_VALIEDATE = "tx_verifyTx";
     //新交易确认并广播
     String TX_NEWTX = "tx_newTx";
+    //直接广播新交易
+    String TX_BROADCAST = "tx_broadcast";
     //发送跨链交易
     String SEND_CROSS_TX = "newApiModuleCrossTx";
     //查询节点详情
@@ -60,6 +62,8 @@ public interface CommandConstant {
     String CONTRACT_RESULT = "sc_contract_result";
     //查询智能合约构造函数
     String CONSTRUCTOR = "sc_constructor";
+    //代币跨链系统合约地址
+    String GET_CROSS_TOKEN_SYSTEM_CONTRACT = "sc_get_cross_token_system_contract";
     //验证创建合约
     String VALIDATE_CREATE = "sc_validate_create";
     //验证调用合约

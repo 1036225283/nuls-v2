@@ -44,6 +44,8 @@ public interface NulsCrossChainConstant {
     String DB_NAME_REGISTERED_CHAIN ="registered_chain";
     /**验证人变更交易广播失败的链信息*/
     String DB_NAME_BROAD_FAILED ="verifier_broad_fail";
+    /**本地验证人信息表*/
+    String DB_NAME_LOCAL_VERIFIER ="local_verifier";
 
 
     /**
@@ -76,6 +78,8 @@ public interface NulsCrossChainConstant {
 
     String VERSION = "1.0";
 
+    byte[] CROSS_TOKEN_NONCE = new byte[]{0,0,0,0,0,0,0,0};
+
     /**
      * 拜占庭超时时间
      */
@@ -84,6 +88,8 @@ public interface NulsCrossChainConstant {
     int BYZANTINE_TRY_COUNT = 5;
 
     int FAULT_TOLERANT_RATIO = 10;
+
+    int VERIFIER_CANCEL_MAX_RATE =30;
 
     int MAGIC_NUM_100 =100;
 
@@ -104,4 +110,6 @@ public interface NulsCrossChainConstant {
     String GET_REGISTERED_CHAIN_MESSAGE = "getChains";
 
     String VERIFIER_SPLIT = ",";
+
+    String STRING_SPLIT = "_";
 }

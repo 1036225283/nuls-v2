@@ -28,6 +28,7 @@ import io.nuls.api.manager.CacheManager;
 import io.nuls.api.model.po.*;
 import io.nuls.api.model.po.mini.MiniAccountInfo;
 import io.nuls.api.model.rpc.*;
+import io.nuls.api.utils.LoggerUtil;
 import io.nuls.api.utils.VerifyUtils;
 import io.nuls.base.basic.AddressTool;
 import io.nuls.core.basic.Result;
@@ -36,7 +37,10 @@ import io.nuls.core.core.annotation.Controller;
 import io.nuls.core.core.annotation.RpcMethod;
 import io.nuls.core.model.StringUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Niels
@@ -78,7 +82,7 @@ public class AccountController {
         if (pageNumber <= 0) {
             pageNumber = 1;
         }
-        if (pageSize <= 0 || pageSize > 1000) {
+        if (pageSize <= 0 || pageSize > 100) {
             pageSize = 10;
         }
         RpcResult result = new RpcResult();
@@ -140,18 +144,21 @@ public class AccountController {
         if (pageNumber <= 0) {
             pageNumber = 1;
         }
-        if (pageSize <= 0 || pageSize > 1000) {
+        if (pageSize <= 0 || pageSize > 100) {
             pageSize = 10;
         }
-
         RpcResult result = new RpcResult();
-        PageInfo<TxRelationInfo> pageInfo;
-        if (CacheManager.isChainExist(chainId)) {
-            pageInfo = accountService.getAccountTxs(chainId, address, pageNumber, pageSize, type, startHeight, endHeight);
-        } else {
-            pageInfo = new PageInfo<>(pageNumber, pageSize);
+        try {
+            PageInfo<TxRelationInfo> pageInfo;
+            if (CacheManager.isChainExist(chainId)) {
+                pageInfo = accountService.getAccountTxs(chainId, address, pageNumber, pageSize, type, startHeight, endHeight);
+            } else {
+                pageInfo = new PageInfo<>(pageNumber, pageSize);
+            }
+            result.setResult(pageInfo);
+        } catch (Exception e) {
+            LoggerUtil.commonLog.error(e);
         }
-        result.setResult(pageInfo);
         return result;
 
     }
@@ -161,7 +168,7 @@ public class AccountController {
         VerifyUtils.verifyParams(params, 7);
         int chainId, pageNumber, pageSize, type;
         String address;
-        long startHeight, endHeight;
+        long startTime, endTime;
         try {
             chainId = (int) params.get(0);
         } catch (Exception e) {
@@ -188,14 +195,14 @@ public class AccountController {
             return RpcResult.paramError("[type] is inValid");
         }
         try {
-            startHeight = Long.parseLong("" + params.get(5));
+            startTime = Long.parseLong("" + params.get(5));
         } catch (Exception e) {
-            return RpcResult.paramError("[startHeight] is invalid");
+            return RpcResult.paramError("[startTime] is invalid");
         }
         try {
-            endHeight = Long.parseLong("" + params.get(6));
+            endTime = Long.parseLong("" + params.get(6));
         } catch (Exception e) {
-            return RpcResult.paramError("[endHeight] is invalid");
+            return RpcResult.paramError("[endTime] is invalid");
         }
 
 
@@ -205,14 +212,14 @@ public class AccountController {
         if (pageNumber <= 0) {
             pageNumber = 1;
         }
-        if (pageSize <= 0 || pageSize > 1000) {
+        if (pageSize <= 0 || pageSize > 100) {
             pageSize = 10;
         }
 
         RpcResult result = new RpcResult();
         PageInfo<TxRelationInfo> pageInfo;
         if (CacheManager.isChainExist(chainId)) {
-            pageInfo = accountService.getAcctTxs(chainId, address, pageNumber, pageSize, type, startHeight, endHeight);
+            pageInfo = accountService.getAcctTxs(chainId, address, pageNumber, pageSize, type, startTime, endTime);
         } else {
             pageInfo = new PageInfo<>(pageNumber, pageSize);
         }
@@ -321,7 +328,7 @@ public class AccountController {
         if (pageNumber <= 0) {
             pageNumber = 1;
         }
-        if (pageSize <= 0 || pageSize > 1000) {
+        if (pageSize <= 0 || pageSize > 100) {
             pageSize = 10;
         }
 
@@ -397,7 +404,7 @@ public class AccountController {
 
     @RpcMethod("getAccountBalance")
     public RpcResult getAccountBalance(List<Object> params) {
-        VerifyUtils.verifyParams(params, 3);
+        VerifyUtils.verifyParams(params, 4);
         int chainId, assetChainId, assetId;
         String address;
         try {
@@ -440,6 +447,56 @@ public class AccountController {
         return RpcResult.success(balanceInfo);
 
     }
+
+    @RpcMethod("getAccountsBalance")
+    public RpcResult getAccountsBalance(List<Object> params) {
+        VerifyUtils.verifyParams(params, 4);
+        int chainId, assetChainId, assetId;
+        String address;
+
+        try {
+            chainId = (int) params.get(0);
+        } catch (Exception e) {
+            return RpcResult.paramError("[chainId] is inValid");
+        }
+        try {
+            assetChainId = (int) params.get(1);
+        } catch (Exception e) {
+            return RpcResult.paramError("[assetChainId] is inValid");
+        }
+        try {
+            assetId = (int) params.get(2);
+        } catch (Exception e) {
+            return RpcResult.paramError("[assetId] is inValid");
+        }
+        try {
+            address = (String) params.get(3);
+        } catch (Exception e) {
+            return RpcResult.paramError("[address] is inValid");
+        }
+        ApiCache apiCache = CacheManager.getCache(chainId);
+        if (apiCache == null) {
+            return RpcResult.dataNotFound();
+        }
+        if (assetId <= 0) {
+            AssetInfo defaultAsset = apiCache.getChainInfo().getDefaultAsset();
+            assetId = defaultAsset.getAssetId();
+        }
+
+        String[] addressList = address.split(",");
+        Map<String,BalanceInfo> balanceInfoList = new HashMap<>();
+        for (int i = 0; i < addressList.length; i++) {
+            address = addressList[i];
+            BalanceInfo balanceInfo = WalletRpcHandler.getAccountBalance(chainId, address, assetChainId, assetId);
+            AccountInfo accountInfo = accountService.getAccountInfo(chainId, address);
+            if (accountInfo != null) {
+                balanceInfo.setConsensusLock(accountInfo.getConsensusLock());
+            }
+            balanceInfoList.put(address, balanceInfo);
+        }
+        return RpcResult.success(balanceInfoList);
+    }
+
 
     @RpcMethod("isAliasUsable")
     public RpcResult isAliasUsable(List<Object> params) {

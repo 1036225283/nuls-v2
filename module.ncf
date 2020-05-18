@@ -10,6 +10,8 @@ chainId=3
 addressPrefix=LUCK
 #默认本链主资产ID
 assetId=1
+#默认资产小数位数
+decimals=8
 #默认链名称
 chainName=luck
 #本链默认资产符号
@@ -77,7 +79,7 @@ awardAssetId=1
 feeUnit=100000
 #总通胀量
 totalInflationAmount=11000000000000000
-#初始通胀金额500w/265*30
+#初始通胀金额500w/365*30
 inflationAmount=41095890410959
 #通胀开始计算时间(单位:S)2020-07-12 00:00:00
 initTime=1594483200
@@ -92,6 +94,7 @@ dependent=protocol-update,smart-contract,cross-chain
 [smart-contract]
 #合约视图方法调用最大消耗的Gas
 maxViewGas=100000000
+crossTokenSystemContract=tNULSeBaN2Agkr2cuMPvzXb337jubehUgLQPSH
 
 [public-service]
 #public-service模块对外的rpc端口号

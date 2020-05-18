@@ -50,6 +50,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import static io.nuls.core.constant.TxType.CROSS_CHAIN;
 import static io.nuls.core.constant.TxType.DELETE_CONTRACT;
 
 
@@ -101,14 +102,16 @@ public class ContractBatchEndCallable implements Callable<ContractPackageDto> {
             // 归集[外部模块调用生成的交易]和[合约内部转账交易]
             List<byte[]> offlineTxHashList = new ArrayList<>();
             List<String> resultTxList = new ArrayList<>();
+            List<String> resultOrginTxList = new ArrayList<>();
             List<ContractTransferTransaction> contractTransferList;
             List<ProgramInvokeRegisterCmd> invokeRegisterCmds;
-            String newTx, newTxHash;
+            String newTx, newTxHash, orginTxHash;
             ProgramNewTx programNewTx;
             for (ContractResult contractResult : contractResultList) {
                 //if (Log.isDebugEnabled()) {
                 //    Log.debug("ContractResult Address is {}, Order is {}", AddressTool.getStringAddressByBytes(contractResult.getContractAddress()), contractResult.getTxOrder());
                 //}
+                orginTxHash = contractResult.getHash();
                 // [外部模块调用生成的交易]
                 invokeRegisterCmds = contractResult.getInvokeRegisterCmds();
                 for (ProgramInvokeRegisterCmd invokeRegisterCmd : invokeRegisterCmds) {
@@ -121,6 +124,7 @@ public class ContractBatchEndCallable implements Callable<ContractPackageDto> {
                     }
                     if (StringUtils.isNotBlank(newTx = programNewTx.getTxString())) {
                         resultTxList.add(newTx);
+                        resultOrginTxList.add(orginTxHash);
                     }
                 }
                 // [合约内部转账交易]
@@ -129,6 +133,7 @@ public class ContractBatchEndCallable implements Callable<ContractPackageDto> {
                     newTx = RPCUtil.encode(tx.serialize());
                     contractResult.getContractTransferTxStringList().add(newTx);
                     resultTxList.add(newTx);
+                    resultOrginTxList.add(orginTxHash);
                     offlineTxHashList.add(tx.getHash().getBytes());
                 }
             }
@@ -138,7 +143,7 @@ public class ContractBatchEndCallable implements Callable<ContractPackageDto> {
                 resultTxList.add(RPCUtil.encode(contractReturnGasTx.serialize()));
             }
 
-            ContractPackageDto dto = new ContractPackageDto(offlineTxHashList, resultTxList);
+            ContractPackageDto dto = new ContractPackageDto(offlineTxHashList, resultTxList, resultOrginTxList);
             dto.makeContractResultMap(contractResultList);
             batchInfo.setContractPackageDto(dto);
 
@@ -168,6 +173,11 @@ public class ContractBatchEndCallable implements Callable<ContractPackageDto> {
             if (wrapperTx.getType() == DELETE_CONTRACT) {
                 continue;
             }
+            // add by pierre at 2019-12-03 代币跨链交易的合约调用是系统调用，不计算Gas消耗，跳过
+            if (wrapperTx.getType() == CROSS_CHAIN) {
+                continue;
+            }
+            // end code by pierre
             contractData = wrapperTx.getContractData();
             long realGasUsed = contractResult.getGasUsed();
             long txGasUsed = contractData.getGasLimit();

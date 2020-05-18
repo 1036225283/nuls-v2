@@ -15,6 +15,7 @@ import io.nuls.core.basic.Result;
 import io.nuls.core.constant.TxStatusEnum;
 import io.nuls.core.exception.NulsException;
 import io.nuls.core.log.Log;
+import io.nuls.core.model.StringUtils;
 import io.nuls.core.rpc.info.Constants;
 import io.nuls.core.rpc.model.ModuleE;
 import io.nuls.core.rpc.model.message.Response;
@@ -291,6 +292,17 @@ public class WalletRpcHandler {
         return Result.getSuccess(null).setData(map);
     }
 
+    private static String crossTokenSystemContract = null;
+    public static String getCrossTokenSystemContract(int chainId) throws NulsException {
+        if(StringUtils.isBlank(crossTokenSystemContract)) {
+            Map<String, Object> params = new HashMap<>();
+            params.put(Constants.CHAIN_ID, chainId);
+            Map map = (Map) RpcCall.request(ModuleE.SC.abbr, CommandConstant.GET_CROSS_TOKEN_SYSTEM_CONTRACT, params);
+            crossTokenSystemContract = (String) map.get("value");
+        }
+        return crossTokenSystemContract;
+    }
+
     public static Result<Map> validateContractCreate(int chainId, Object sender, Object gasLimit, Object price, Object contractCode, Object args) throws NulsException {
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.CHAIN_ID, chainId);
@@ -449,6 +461,19 @@ public class WalletRpcHandler {
         }
     }
 
+    public static Result broadcastTxWithoutAnyValidation(int chainId, String txHex) {
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.CHAIN_ID, chainId);
+        params.put("tx", txHex);
+
+        try {
+            Map map = (Map) RpcCall.request(ModuleE.TX.abbr, CommandConstant.TX_BROADCAST, params);
+            return Result.getSuccess(null).setData(map);
+        } catch (NulsException e) {
+            return Result.getFailed(e.getErrorCode());
+        }
+    }
+
     public static Result sendCrossTx(int chainId, String txHex) {
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.CHAIN_ID, chainId);
@@ -524,9 +549,21 @@ public class WalletRpcHandler {
                     }
                 }
             }
+
+            if (assetInfoMap.isEmpty()) {
+                AssetInfo assetInfo = new AssetInfo();
+                assetInfo.setChainId(ApiContext.defaultChainId);
+                assetInfo.setAssetId(ApiContext.defaultAssetId);
+                assetInfo.setSymbol(ApiContext.defaultSymbol);
+                assetInfo.setDecimals(ApiContext.defaultDecimals);
+                assetInfo.setStatus(ENABLE);
+                assetInfoMap.put(assetInfo.getKey(), assetInfo);
+            }
+
             map.clear();
             map.put("chainInfoMap", chainInfoMap);
             map.put("assetInfoMap", assetInfoMap);
+
             return Result.getSuccess(null).setData(map);
         } catch (NulsException e) {
             return Result.getFailed(e.getErrorCode());

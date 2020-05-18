@@ -128,7 +128,7 @@ public class ContractResource extends BaseCmd {
             Object[] args = argsList != null ? argsList.toArray() : null;
             String remark = (String) params.get("remark");
 
-            if (gasLimit < 0 || price < 0) {
+            if (gasLimit < 0 || price < CONTRACT_MINIMUM_PRICE) {
                 return failed(ContractErrorCode.PARAMETER_ERROR);
             }
 
@@ -898,7 +898,9 @@ public class ContractResource extends BaseCmd {
             ProgramResult programResult = contractHelper.invokeCustomGasViewMethod(chainId, blockHeader, contractAddressBytes, methodName, methodDesc,
                     ContractUtil.twoDimensionalArray(args, method.argsType2Array()));
 
-            Log.info("view method cost gas: " + programResult.getGasUsed());
+            if (Log.isDebugEnabled()) {
+                Log.debug("view method cost gas: " + programResult.getGasUsed());
+            }
 
             if (!programResult.isSuccess()) {
                 Log.error("error msg: {}, statck trace: {}", programResult.getErrorMessage(), programResult.getStackTrace());
@@ -1061,7 +1063,7 @@ public class ContractResource extends BaseCmd {
                 } else if (!ContractUtil.isContractTransaction(tx)) {
                     continue;
                 }
-                ContractBaseTransaction tx1 = ContractUtil.convertContractTx(tx);
+                ContractBaseTransaction tx1 = ContractUtil.convertContractTx(chainId, tx);
                 contractResultDto = this.makeContractResultDto(chainId, tx1, txHash);
                 if (contractResultDto == null) {
                     continue;
@@ -1114,7 +1116,7 @@ public class ContractResource extends BaseCmd {
                         break;
                     }
                 }
-                ContractBaseTransaction tx1 = ContractUtil.convertContractTx(tx);
+                ContractBaseTransaction tx1 = ContractUtil.convertContractTx(chainId, tx);
                 contractResultDto = this.makeContractResultDto(chainId, tx1, txHash);
                 if (contractResultDto == null) {
                     flag = false;
@@ -1213,7 +1215,7 @@ public class ContractResource extends BaseCmd {
                     return failed(NON_CONTRACTUAL_TRANSACTION);
                 }
             }
-            ContractBaseTransaction tx1 = ContractUtil.convertContractTx(tx);
+            ContractBaseTransaction tx1 = ContractUtil.convertContractTx(chainId, tx);
             tx1.setStatus(TxStatusEnum.CONFIRMED);
             // 获取合约执行结果
             ContractResultDto contractResultDto = this.makeContractResultDto(chainId, tx1, txHash);

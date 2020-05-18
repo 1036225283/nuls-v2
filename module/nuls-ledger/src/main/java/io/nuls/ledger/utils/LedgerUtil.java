@@ -8,9 +8,14 @@ import io.nuls.core.constant.TxType;
 import io.nuls.core.crypto.HexUtil;
 import io.nuls.core.log.Log;
 import io.nuls.ledger.constant.LedgerConstant;
+import io.nuls.ledger.model.tx.txdata.TxLedgerAsset;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by lanjinsheng on 2019/01/02
@@ -118,8 +123,7 @@ public class LedgerUtil {
      * @return
      */
     public static boolean isCrossTx(int txType) {
-        return txType == TxType.CROSS_CHAIN;
-
+        return (txType == TxType.CROSS_CHAIN || txType == TxType.CONTRACT_TOKEN_CROSS_TRANSFER);
     }
 
     public static String getAccountAssetStrKey(CoinFrom from) {
@@ -139,7 +143,53 @@ public class LedgerUtil {
 
     public static int getVersion(int chainId) {
         int  version = ProtocolGroupManager.getCurrentVersion(chainId);
-        LoggerUtil.logger(chainId).debug("verion={}",version);
+        //LoggerUtil.logger(chainId).debug("verion={}",version);
         return version;
+    }
+
+    public static boolean isBlackHoleAddress(int chainId, byte[] address) {
+        if(address == null) {
+            return false;
+        }
+        int chainIdByAddress = AddressTool.getChainIdByAddress(address);
+        if(chainIdByAddress != 1) {
+            return false;
+        }
+        String contractAddress = AddressTool.getStringAddressByBytes(address);
+        // add by pierre at 2020-04-02 协议升级黑洞地址
+        if (LedgerUtil.getVersion(chainId) >= 5) {
+            return AddressTool.BLOCK_HOLE_ADDRESS_SET.contains(contractAddress) ||
+                    AddressTool.BLOCK_HOLE_ADDRESS_SET_5.contains(contractAddress);
+        }
+        // end code by pierre
+        return AddressTool.BLOCK_HOLE_ADDRESS_SET.contains(contractAddress);
+    }
+
+    public static TxLedgerAsset map2TxLedgerAsset(Map<String, Object> map) {
+        TxLedgerAsset txLedgerAsset = new TxLedgerAsset();
+        txLedgerAsset.setName(String.valueOf(map.get("assetName")));
+        BigInteger initNumber = new BigInteger(String.valueOf(map.get("initNumber")));
+        txLedgerAsset.setInitNumber(initNumber);
+        txLedgerAsset.setDecimalPlace(Short.valueOf(map.get("decimalPlace").toString()));
+        txLedgerAsset.setSymbol(String.valueOf(map.get("assetSymbol")));
+        txLedgerAsset.setAddress(AddressTool.getAddress(map.get("assetOwnerAddress").toString()));
+        return txLedgerAsset;
+
+    }
+
+    public static void dealAssetAddressIndex(Map<String, List<String>> assetAddressIndex, int chainId, int assetId, String address) {
+        String assetIndexKey = chainId + "-" + assetId;
+        List<String> addressList = null;
+        if (null == assetAddressIndex.get(assetIndexKey)) {
+            addressList = new ArrayList<>();
+            assetAddressIndex.put(assetIndexKey, addressList);
+        } else {
+            addressList = assetAddressIndex.get(assetIndexKey);
+        }
+        addressList.add(address);
+    }
+
+    public static boolean isPermanentLock(long lockTime) {
+        return (lockTime < 0);
     }
 }

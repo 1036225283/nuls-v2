@@ -114,6 +114,18 @@ public class AgentManager {
     }
 
     /**
+     * 根据节点地址找节点
+     * */
+    public Agent getAgentByAgentAddress(Chain chain, byte[] agentAddress){
+        for (Agent agent : chain.getAgentList()){
+            if(Arrays.equals(agentAddress, agent.getAgentAddress())){
+                return agent;
+            }
+        }
+        return null;
+    }
+
+    /**
      * AgentPo to Agent
      *
      * @param agentPo agentPo对象/agentPo object
@@ -284,7 +296,7 @@ public class AgentManager {
                 memberSet.add(AddressTool.getStringAddressByBytes(deposit.getAddress()));
             }
             agent.setMemberCount(memberSet.size());
-            agent.setTotalDeposit(total);
+            agent.setReTotalDeposit(total);
         }
         if (round == null) {
             return;
@@ -297,5 +309,19 @@ public class AgentManager {
             agent.setStatus(1);
         }
         agent.setCreditVal(member.getAgent().getRealCreditVal());
+    }
+
+    public BigInteger getAgentDeposit(Chain chain, Agent agent){
+        BigInteger totalDeposit = BigInteger.ZERO;
+        for (Deposit deposit : chain.getDepositList()){
+            if (!agent.getTxHash().equals(deposit.getAgentHash())) {
+                continue;
+            }
+            if (deposit.getDelHeight() >= 0) {
+                continue;
+            }
+            totalDeposit = totalDeposit.add(deposit.getDeposit());
+        }
+        return totalDeposit;
     }
 }

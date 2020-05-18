@@ -35,6 +35,8 @@ public class MongoDBTableServiceImpl implements DBTableService {
     private AgentService agentService;
     @Autowired
     private TransactionService transactionService;
+    @Autowired
+    private ContractService contractService;
 
     public List<ChainInfo> getChainList() {
         return chainService.getChainInfoList();
@@ -46,7 +48,8 @@ public class MongoDBTableServiceImpl implements DBTableService {
         ledgerService.initCache();
         aliasService.initCache();
         agentService.initCache();
-        transactionService.initCache();
+//        transactionService.initCache();
+        contractService.initCache();
     }
 
     public void addDefaultChainCache() {
@@ -78,7 +81,7 @@ public class MongoDBTableServiceImpl implements DBTableService {
 
         chainInfo.setSeeds(seedNodes);
         chainService.addCacheChain(chainInfo, configInfo);
-        transactionService.addCache(chainInfo.getChainId());
+//        transactionService.addCache(chainInfo.getChainId());
     }
 
     public void initTables(int chainId) {

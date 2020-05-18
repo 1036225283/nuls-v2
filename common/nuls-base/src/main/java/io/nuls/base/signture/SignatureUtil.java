@@ -54,12 +54,21 @@ import java.util.*;
  */
 @Component
 public class SignatureUtil {
+
+    private static final int MAIN_CHAIN_ID = 1;
     /**
      * 验证交易中所有签名正确性
      *
+     * @param chainId 当前链ID
      * @param tx 交易
      */
-    public static boolean validateTransactionSignture(Transaction tx) throws NulsException {
+    public static boolean validateTransactionSignture(int chainId, Transaction tx) throws NulsException {
+        // 判断硬分叉,需要一个高度
+        long hardForkingHeight = 878000;
+        boolean forked = tx.getBlockHeight() <= 0 || tx.getBlockHeight() > hardForkingHeight;
+        if(chainId != MAIN_CHAIN_ID) {
+            forked = true;
+        }
         try {
             if (tx.getTransactionSignature() == null || tx.getTransactionSignature().length == 0) {
                 throw new NulsException(new Exception());
@@ -70,15 +79,24 @@ public class SignatureUtil {
                 if ((transactionSignature.getP2PHKSignatures() == null || transactionSignature.getP2PHKSignatures().size() == 0)) {
                     throw new NulsException(new Exception("Transaction unsigned ！"));
                 }
-                int signCount = tx.getCoinDataInstance().getFromAddressCount();
-                int passCount = 0;
-                for (P2PHKSignature signature : transactionSignature.getP2PHKSignatures()) {
-                    if (!ECKey.verify(tx.getHash().getBytes(), signature.getSignData().getSignBytes(), signature.getPublicKey())) {
-                        throw new NulsException(new Exception("Transaction signature error !"));
+                if (forked) {
+                    //这里用硬分叉后的新逻辑
+                    for (P2PHKSignature signature : transactionSignature.getP2PHKSignatures()) {
+                        if (!ECKey.verify(tx.getHash().getBytes(), signature.getSignData().getSignBytes(), signature.getPublicKey())) {
+                            throw new NulsException(new Exception("Transaction signature error !"));
+                        }
                     }
-                    passCount++;
-                    if(passCount >= signCount){
-                        break;
+                } else {
+                    int signCount = tx.getCoinDataInstance().getFromAddressCount();
+                    int passCount = 0;
+                    for (P2PHKSignature signature : transactionSignature.getP2PHKSignatures()) {
+                        if (!ECKey.verify(tx.getHash().getBytes(), signature.getSignData().getSignBytes(), signature.getPublicKey())) {
+                            throw new NulsException(new Exception("Transaction signature error !"));
+                        }
+                        passCount++;
+                        if (passCount >= signCount) {
+                            break;
+                        }
                     }
                 }
             } else {
@@ -93,7 +111,7 @@ public class SignatureUtil {
                     if (ECKey.verify(tx.getHash().getBytes(), signature.getSignData().getSignBytes(), signature.getPublicKey())) {
                         validCount++;
                     }
-                    if (validCount >= transactionSignature.getM()) {
+                    if (!forked && validCount >= transactionSignature.getM()) {
                         break;
                     }
                 }
@@ -114,9 +132,47 @@ public class SignatureUtil {
      *
      * @param tx 交易
      */
-    public static boolean validateCtxSignture(Transaction tx)throws NulsException{
+    public static boolean ctxSignatureValid(int chainId,Transaction tx)throws NulsException{
         if (tx.getTransactionSignature() == null || tx.getTransactionSignature().length == 0) {
-            if(tx.getType() == TxType.VERIFIER_INIT || tx.getType() == TxType.VERIFIER_CHANGE){
+            throw new NulsException(new Exception());
+        }
+        TransactionSignature transactionSignature = new TransactionSignature();
+        transactionSignature.parse(tx.getTransactionSignature(), 0);
+        if ((transactionSignature.getP2PHKSignatures() == null || transactionSignature.getP2PHKSignatures().size() == 0)) {
+            throw new NulsException(new Exception("Transaction unsigned ！"));
+        }
+        Set<String> fromAddressSet = tx.getCoinDataInstance().getFromAddressList();
+        int signCount = tx.getCoinDataInstance().getFromAddressCount();
+        int passCount = 0;
+        String signAddress;
+        for (P2PHKSignature signature : transactionSignature.getP2PHKSignatures()) {
+            if (!ECKey.verify(tx.getHash().getBytes(), signature.getSignData().getSignBytes(), signature.getPublicKey())) {
+                throw new NulsException(new Exception("Transaction signature error !"));
+            }
+            signAddress = AddressTool.getStringAddressByBytes(AddressTool.getAddress(signature.getPublicKey(), chainId));
+            if(!fromAddressSet.contains(signAddress)){
+                continue;
+            }
+            fromAddressSet.remove(signAddress);
+            passCount++;
+            if (passCount >= signCount && fromAddressSet.isEmpty()) {
+                break;
+            }
+        }
+        if(passCount < signCount || !fromAddressSet.isEmpty()){
+            throw new NulsException(new Exception("Transaction signature error !"));
+        }
+        return true;
+    }
+
+    /**
+     * 跨链交易验证签名
+     *
+     * @param tx 交易
+     */
+    public static boolean validateCtxSignture(Transaction tx) throws NulsException {
+        if (tx.getTransactionSignature() == null || tx.getTransactionSignature().length == 0) {
+            if (tx.getType() == TxType.VERIFIER_INIT || tx.getType() == TxType.VERIFIER_CHANGE) {
                 return true;
             }
             return false;

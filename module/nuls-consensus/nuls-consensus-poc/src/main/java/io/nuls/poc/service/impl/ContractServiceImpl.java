@@ -3,6 +3,8 @@ package io.nuls.poc.service.impl;
 import io.nuls.base.RPCUtil;
 import io.nuls.base.basic.AddressTool;
 import io.nuls.base.data.*;
+import io.nuls.base.protocol.Protocol;
+import io.nuls.base.protocol.ProtocolGroupManager;
 import io.nuls.core.basic.Result;
 import io.nuls.core.constant.TxType;
 import io.nuls.core.core.annotation.Autowired;
@@ -22,6 +24,7 @@ import io.nuls.poc.model.bo.tx.txdata.CancelDeposit;
 import io.nuls.poc.model.bo.tx.txdata.Deposit;
 import io.nuls.poc.model.bo.tx.txdata.StopAgent;
 import io.nuls.poc.model.dto.input.*;
+import io.nuls.poc.model.dto.transaction.TransactionDto;
 import io.nuls.poc.model.po.AgentPo;
 import io.nuls.poc.model.po.DepositPo;
 import io.nuls.poc.rpc.call.CallMethodUtils;
@@ -299,7 +302,12 @@ public class ContractServiceImpl implements ContractService {
                 value.add(AddressTool.getStringAddressByBytes(agent.getPackingAddress()));
                 value.add(AddressTool.getStringAddressByBytes(agent.getRewardAddress()));
                 value.add(agent.getDeposit().toString());
-                value.add(agent.getTotalDeposit().toString());
+                //协议升级
+                if(ProtocolGroupManager.getCurrentVersion(chain.getConfig().getChainId()) >= 5){
+                    value.add(agentManager.getAgentDeposit(chain, agent).toString());
+                }else{
+                    value.add(agent.getTotalDeposit().toString());
+                }
                 value.add(String.valueOf(agent.getCommissionRate()));
                 value.add(String.valueOf(agent.getTime()));
                 value.add(String.valueOf(agent.getBlockHeight()));
@@ -311,6 +319,13 @@ public class ContractServiceImpl implements ContractService {
                     value.add(String.valueOf(agent.getStatus()));
                 }
                 result.put(ConsensusConstant.PARAM_RESULT_VALUE, value);
+                // add by pierre at 2020-03-19 trace the data log
+                try {
+                    chain.getLogger().info("contract cs_getContractDepositInfo, param is {}, data is {}", JSONUtils.obj2json(dto), JSONUtils.obj2json(result));
+                } catch (Exception e) {
+                    chain.getLogger().warn(e.getMessage());
+                }
+                // end code by pierre
                 return Result.getSuccess(ConsensusErrorCode.SUCCESS).setData(result);
             }
         }

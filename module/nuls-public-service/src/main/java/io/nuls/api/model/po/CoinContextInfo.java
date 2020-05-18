@@ -1,6 +1,7 @@
 package io.nuls.api.model.po;
 
 import java.math.BigInteger;
+import java.util.List;
 
 public class CoinContextInfo {
 
@@ -20,7 +21,11 @@ public class CoinContextInfo {
 
     private BigInteger unmapped;
 
+    private BigInteger destroy;
+
     private long txCount;
+
+    private List<DestroyInfo> destroyInfoList;
 
     public CoinContextInfo() {
         total = BigInteger.ZERO;
@@ -103,5 +108,22 @@ public class CoinContextInfo {
 
     public void setUnmapped(BigInteger unmapped) {
         this.unmapped = unmapped;
+    }
+
+
+    public BigInteger getDestroy() {
+        return destroy;
+    }
+
+    public void setDestroy(BigInteger destroy) {
+        this.destroy = destroy;
+    }
+
+    public List<DestroyInfo> getDestroyInfoList() {
+        return destroyInfoList;
+    }
+
+    public void setDestroyInfoList(List<DestroyInfo> destroyInfoList) {
+        this.destroyInfoList = destroyInfoList;
     }
 }

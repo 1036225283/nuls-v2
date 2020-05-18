@@ -1,5 +1,6 @@
 package io.nuls.crosschain.nuls.utils.manager;
 
+import io.nuls.base.data.Block;
 import io.nuls.base.data.BlockHeader;
 import io.nuls.base.protocol.ProtocolLoader;
 import io.nuls.core.core.annotation.Autowired;
@@ -12,9 +13,13 @@ import io.nuls.crosschain.base.message.RegisteredChainMessage;
 import io.nuls.crosschain.base.model.bo.ChainInfo;
 import io.nuls.crosschain.nuls.constant.NulsCrossChainConfig;
 import io.nuls.crosschain.nuls.constant.NulsCrossChainConstant;
+import io.nuls.crosschain.nuls.constant.ParamConstant;
 import io.nuls.crosschain.nuls.model.bo.Chain;
+import io.nuls.crosschain.nuls.model.bo.CmdRegisterDto;
 import io.nuls.crosschain.nuls.model.bo.config.ConfigBean;
 import io.nuls.crosschain.nuls.rpc.call.BlockCall;
+import io.nuls.crosschain.nuls.rpc.call.ConsensusCall;
+import io.nuls.crosschain.nuls.rpc.call.SmartContractCall;
 import io.nuls.crosschain.nuls.srorage.ConfigService;
 import io.nuls.crosschain.nuls.srorage.RegisteredCrossChainService;
 import io.nuls.crosschain.nuls.utils.LoggerUtil;
@@ -116,22 +121,43 @@ public class ChainManager {
     }
 
     /**
+     * 注册智能合约交易
+     * */
+    public void registerContractTx(){
+        for (Chain chain:chainMap.values()) {
+            /*
+             * 注册智能合约交易
+             * Chain Trading Registration
+             * */
+            int chainId = chain.getConfig().getChainId();
+            List<CmdRegisterDto> cmdRegisterDtoList = new ArrayList<>();
+            CmdRegisterDto tokenOutCrossChain = new CmdRegisterDto("cc_tokenOutCrossChain", 0, List.of("from", "to", "value"), 1);
+            cmdRegisterDtoList.add(tokenOutCrossChain);
+            SmartContractCall.registerContractTx(chainId, cmdRegisterDtoList);
+        }
+    }
+
+    /**
      * 加载链缓存数据并启动链
      * Load the chain to cache data and start the chain
      */
+    @SuppressWarnings("unchecked")
     public void runChain() {
         for (Chain chain : chainMap.values()) {
+            //加载本地验证人列表
+            LocalVerifierManager.loadLocalVerifier(chain);
+            //初始化区块模块同步状态
+            chain.setSyncStatus(BlockCall.getBlockStatus(chain));
             chain.getThreadPool().execute(new HashMessageHandler(chain));
-            chain.getThreadPool().execute(new CtxMessageHandler(chain));
-            chain.getThreadPool().execute(new SignMessageHandler(chain));
             chain.getThreadPool().execute(new OtherCtxMessageHandler(chain));
             chain.getThreadPool().execute(new GetCtxStateHandler(chain));
             chain.getThreadPool().execute(new SignMessageByzantineHandler(chain));
-            chainHeaderMap.put(chain.getChainId(), BlockCall.getLatestBlockHeader(chain));
-
+            int syncStatus = BlockCall.getBlockStatus(chain);
+            chain.getLogger().info("The current status of the node is:{}",syncStatus);
+            chain.setSyncStatus(syncStatus);
         }
         if(!config.isMainNet()){
-            scheduledThreadPoolExecutor.scheduleAtFixedRate(new GetRegisteredChainTask(this),  20L, 10 * 60L, TimeUnit.SECONDS );
+            scheduledThreadPoolExecutor.scheduleAtFixedRate(new GetRegisteredChainTask(this),  20L, 60L, TimeUnit.SECONDS );
         }else{
             crossNetUseAble = true;
         }

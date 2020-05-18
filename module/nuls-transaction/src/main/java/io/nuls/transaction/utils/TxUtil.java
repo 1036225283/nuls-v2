@@ -28,12 +28,14 @@ import io.nuls.base.RPCUtil;
 import io.nuls.base.basic.AddressTool;
 import io.nuls.base.basic.NulsByteBuffer;
 import io.nuls.base.data.*;
+import io.nuls.base.protocol.ProtocolGroupManager;
 import io.nuls.core.core.ioc.SpringLiteContext;
 import io.nuls.core.crypto.HexUtil;
 import io.nuls.core.exception.NulsException;
 import io.nuls.core.rpc.util.NulsDateUtils;
 import io.nuls.transaction.constant.TxConfig;
 import io.nuls.transaction.constant.TxConstant;
+import io.nuls.transaction.constant.TxContext;
 import io.nuls.transaction.constant.TxErrorCode;
 import io.nuls.transaction.manager.TxManager;
 import io.nuls.transaction.model.bo.Chain;
@@ -49,6 +51,8 @@ import static io.nuls.transaction.utils.LoggerUtil.LOG;
  * @date: 2018-12-05
  */
 public class TxUtil {
+
+    public static byte[] blackHolePublicKey = null;
 
     public static CoinData getCoinData(Transaction tx) throws NulsException {
         if (null == tx) {
@@ -422,5 +426,25 @@ public class TxUtil {
     public static String nextLine(){
         String lineSeparator = System.getProperty("line.separator");
         return lineSeparator + lineSeparator;
+    }
+
+    public static boolean isBlackHoleAddress(int chainId, byte[] address) {
+        if(address == null) {
+            return false;
+        }
+        int chainIdByAddress = AddressTool.getChainIdByAddress(address);
+        if(chainIdByAddress != 1) {
+            return false;
+        }
+
+        String contractAddress = AddressTool.getStringAddressByBytes(address);
+
+        // add by pierre at 2020-04-02 协议升级黑洞地址
+        if (ProtocolGroupManager.getCurrentVersion(chainId) >= TxContext.UPDATE_VERSION_V250) {
+            return AddressTool.BLOCK_HOLE_ADDRESS_SET.contains(contractAddress) ||
+                    AddressTool.BLOCK_HOLE_ADDRESS_SET_5.contains(contractAddress);
+        }
+        // end code by pierre
+        return AddressTool.BLOCK_HOLE_ADDRESS_SET.contains(contractAddress);
     }
 }

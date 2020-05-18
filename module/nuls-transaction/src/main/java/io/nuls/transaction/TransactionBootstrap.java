@@ -30,6 +30,8 @@ import io.nuls.base.protocol.ProtocolGroupManager;
 import io.nuls.base.protocol.RegisterHelper;
 import io.nuls.core.core.annotation.Autowired;
 import io.nuls.core.core.annotation.Component;
+import io.nuls.core.crypto.HexUtil;
+import io.nuls.core.exception.NulsException;
 import io.nuls.core.rockdb.service.RocksDBService;
 import io.nuls.core.rpc.info.HostInfo;
 import io.nuls.core.rpc.model.ModuleE;
@@ -44,7 +46,9 @@ import io.nuls.transaction.constant.TxConstant;
 import io.nuls.transaction.constant.TxDBConstant;
 import io.nuls.transaction.manager.ChainManager;
 import io.nuls.transaction.model.bo.Chain;
+import io.nuls.transaction.rpc.call.ContractCall;
 import io.nuls.transaction.utils.DBUtil;
+import io.nuls.transaction.utils.TxUtil;
 
 import java.util.Set;
 
@@ -82,6 +86,7 @@ public class TransactionBootstrap extends RpcModule {
             //初始化数据库配置文件
             initDB();
             chainManager.initChain();
+            TxUtil.blackHolePublicKey = HexUtil.decode(txConfig.getBlackHolePublicKey());
             ModuleHelper.init(this);
         } catch (Exception e) {
             LOG.error("Transaction init error!");
@@ -109,6 +114,20 @@ public class TransactionBootstrap extends RpcModule {
 
     @Override
     public void onDependenciesReady(Module module) {
+        // add by pierre at 2019-12-04 增加与智能合约模块的连接标志
+        LOG.info("module [{}] is connected, version [{}]", module.getName(), module.getVersion());
+        if (ModuleE.SC.abbr.equals(module.getName())) {
+            txConfig.setCollectedSmartContractModule(true);
+        //add at 2019-12-31 增加获取智能合约生成的交易类型
+            try {
+                for(Chain chain : chainManager.getChainMap().values()) {
+                    chain.setContractGenerateTxTypes(ContractCall.getContractGenerateTxTypes(chain));
+                }
+            } catch (NulsException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        // end code by pierre
         if (ModuleE.NW.abbr.equals(module.getName())) {
             RegisterHelper.registerMsg(ProtocolGroupManager.getOneProtocol());
         }
@@ -126,6 +145,12 @@ public class TransactionBootstrap extends RpcModule {
 
     @Override
     public RpcModuleState onDependenciesLoss(Module module) {
+        // add by pierre at 2019-12-04 增加与智能合约模块的连接标志
+        LOG.info("module [{}] has lost connection, version [{}]", module.getName(), module.getVersion());
+        if (ModuleE.SC.abbr.equals(module.getName())) {
+            txConfig.setCollectedSmartContractModule(false);
+        }
+        // end code by pierre
         if (ModuleE.BL.abbr.equals(module.getName())) {
             for(Chain chain : chainManager.getChainMap().values()) {
                 chain.getProcessTxStatus().set(false);
